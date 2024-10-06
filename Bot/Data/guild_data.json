@@ -1,0 +1,49 @@
+{
+    "1288140047924723792": {
+        "profanity_list": [
+            "cp",
+            "childporn",
+            "c.p",
+            "raid",
+            "token",
+            "furrycum",
+            ".gg/",
+            "cwelium"
+        ],
+        "user_message_history": {},
+        "group_message_history": {},
+        "mention_history": {},
+        "adaptive_thresholds": {
+            "spam_threshold": 6,
+            "similarity_threshold": 0.12,
+            "ping_threshold": 3,
+            "group_threshold": 4,
+            "time_window": 100,
+            "activity_level": 0
+        },
+        "anti_raid": true
+    },
+    "1282422871553212526": {
+        "profanity_list": [
+            "cp",
+            "childporn",
+            "c.p",
+            "raid",
+            "token",
+            "furrycum",
+            ".gg/"
+        ],
+        "user_message_history": {},
+        "group_message_history": {},
+        "mention_history": {},
+        "adaptive_thresholds": {
+            "spam_threshold": 20,
+            "similarity_threshold": 0.4,
+            "ping_threshold": 10,
+            "group_threshold": 15,
+            "time_window": 30,
+            "activity_level": 100.0
+        },
+        "anti_raid": true
+    }
+}
