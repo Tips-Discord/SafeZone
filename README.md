@@ -1,0 +1,2 @@
+# SafeZone
+SafeZone AutoMod
