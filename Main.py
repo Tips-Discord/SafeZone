@@ -159,10 +159,11 @@ async def on_message(message):
         pattern = build_pattern(message.content)
         observed_patterns[pattern] += 1
 
-        clean_msg = clean_message(message.content)
-        if any(profanity in clean_msg for profanity in guild_data['profanity_list']):
+        if any(profanity in message.content.lower() for profanity in (word.lower() for word in guild_data['profanity_list'])):
             await message.delete()
             return
+        
+        calculate_activity_level(guild_data, message.guild.id)
 
 @bot.tree.error
 async def on_app_command_error(interaction: Interaction, error: Exception):
@@ -186,4 +187,4 @@ async def clear_histories():
         guild_data['mention_history'] = {}
 
 if __name__ == '__main__':
-    bot.run(token)
+    bot.run(toke)

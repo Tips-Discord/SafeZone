@@ -84,5 +84,3 @@ async def purge_spam_messages(channel, user, limit):
         permission_denied_users.add(user.id)
     except discord.RateLimited:
         pass
-
-observed_patterns = defaultdict(int)

@@ -15,6 +15,7 @@ import time
 
 sys.dont_write_bytecode = True
 os.environ['PYTHONDONTWRITEBYTECODE'] = '1'
-token = "MTI5MTM5ODA3NDY3MzEzNTcxMA.G_WqPj.ZAbgTSUL6kOK4p87GdTGPwcu5hBmoOXN_0wDLw"
+toke = "MTI5MTM5ODA3NDY3MzEzNTcxMA.Gj9iXr.tAXAEr1lz7oJ2I7CzO4g52ZHeSm_9mzQtBCJso"
 permission_denied_users = set()
 message_cache = {}
+observed_patterns = defaultdict(int)

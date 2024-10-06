@@ -17,3 +17,16 @@ class AdaptiveThresholds:
         self.ping_threshold = int(10 * scale_factor)
         self.group_threshold = int(15 * scale_factor)
         self.time_window = int(30 / scale_factor)
+
+def calculate_activity_level(guild_data, guild_id):
+    current_time = time.time()
+    user_message_history = guild_data['user_message_history']
+    
+    total_messages = sum(len(history) for history in user_message_history.values())
+    recent_messages = sum(len([msg_content for msg_content, msg_time in history if current_time - msg_time < 60])
+                          for history in user_message_history.values())
+    
+    activity_level = (recent_messages / total_messages) * 100 if total_messages else 0
+    thresholds = guild_data['adaptive_thresholds']
+    thresholds.activity_level = activity_level
+    thresholds.adjust(activity_level)
