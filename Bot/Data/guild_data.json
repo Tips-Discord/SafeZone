@@ -1,0 +1,33 @@
+{
+    "1282422871553212526": {
+        "profanity_list": [
+            "cp",
+            "childporn",
+            "c.p",
+            "raid",
+            "token",
+            "furrycum",
+            ".gg/",
+            "nigA"
+        ],
+        "user_message_history": {
+            "1100342265303547924": [
+                [
+                    "niga",
+                    1728311540.629023
+                ]
+            ]
+        },
+        "group_message_history": [],
+        "mention_history": {},
+        "adaptive_thresholds": {
+            "spam_threshold": 20,
+            "similarity_threshold": 0.4,
+            "ping_threshold": 10,
+            "group_threshold": 15,
+            "time_window": 30,
+            "activity_level": 100
+        },
+        "anti_raid": true
+    }
+}

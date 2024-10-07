@@ -108,13 +108,19 @@ async def automod(interaction: discord.Interaction, action: str, word: str = Non
 
     elif action == "remove" and word:
         words_to_remove = [w.strip() for w in word.split(",") if w.strip()]
+        removed_words = []
         for w in words_to_remove:
             if w in guild_data['profanity_list']:
                 guild_data['profanity_list'].remove(w)
-        await interaction.response.send_message(f"Removed words: {', '.join(words_to_remove)}", ephemeral=True)
-
+                removed_words.append(w)
+        
+        if removed_words:
+            await interaction.response.send_message(f"Removed words: {', '.join(removed_words)}", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"None of the words were found in the profanity list.", ephemeral=True)
     else:
         await interaction.response.send_message("Invalid action or missing word.", ephemeral=True)
+
 
 @bot.tree.command(name="anti_raid", description="Enable or disable anti-raid protection.")
 @app_commands.describe(
@@ -180,11 +186,9 @@ async def clear_histories():
     permission_denied_users.clear()
 
     for guild_data in bot.guild_data.values():
-        guild_data['user_message_history'] = {}
-
-        guild_data['group_message_history'] = {}
-
-        guild_data['mention_history'] = {}
+        guild_data['user_message_history'].clear()
+        guild_data['group_message_history'].clear()
+        guild_data['mention_history'].clear()
 
 if __name__ == '__main__':
-    bot.run(toke)
+    bot.run(test_toke)
