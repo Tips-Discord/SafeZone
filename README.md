@@ -1,2 +1,3 @@
 # SafeZone
-SafeZone AutoMod
+## SafeZone AutoMod
+### Wont be updated
