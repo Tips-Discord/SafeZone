@@ -76,11 +76,7 @@ async def timeout_user(member, duration):
         permission_denied_users.add(member.id)
 
 async def purge_spam_messages(channel, user, limit):
-    if user.id in permission_denied_users:
-        return
     try:
         await channel.purge(limit=limit, check=lambda message: message.author == user)
-    except (discord.Forbidden, discord.HTTPException):
-        permission_denied_users.add(user.id)
     except discord.RateLimited:
         pass

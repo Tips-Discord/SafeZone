@@ -1,19 +1,16 @@
 from Bot._Init_ import *
-from Bot.Utils.GuildManager import GuildManager as GM
 from Bot.Utils.AdaptiveThresholds import *
 from Bot.Utils.Rest import *
-
-atexit.register(lambda: GM().save_guild_data(bot.guild_data))
 
 class MyBot(discord.Client):
     def __init__(self):
         super().__init__(intents=discord.Intents.all())
         self.tree = app_commands.CommandTree(self)
-        self.guild_data = GM().load_guild_data()
+        self.guild_data = {}
 
     async def on_ready(self):
         print(f'Logged in as {self.user}!')
-        print(f'im in {len(self.guilds)} guilds')
+        print(f'im in {len(self.guilds)} guilds.')
         await self.change_presence(activity=discord.Game(name='Developed by Tips'))
         clear_histories.start()
 
@@ -32,7 +29,6 @@ class MyBot(discord.Client):
         await self.tree.sync()
 
     async def close(self):
-        GM().save_guild_data(bot.guild_data)
         await super().close()
 
 bot = MyBot()
@@ -144,10 +140,15 @@ async def anti_raid(interaction: discord.Interaction, status: str):
 async def on_message(message):
     if message.author == bot.user:
         return
-    
+
     guild_data = get_guild_data(message.guild.id)
 
+    if guild_data is None:
+        print(f"Failed to retrieve guild data for guild ID {message.guild.id}")
+        return
+
     if guild_data['anti_raid']:
+
         if detect_spam(guild_data, message.author.id, message):
             await asyncio.gather(
                 purge_spam_messages(message.channel, message.author, limit=125),
@@ -162,13 +163,12 @@ async def on_message(message):
             )
             return
 
-        pattern = build_pattern(message.content)
-        observed_patterns[pattern] += 1
-
-        if any(profanity in message.content.lower() for profanity in (word.lower() for word in guild_data['profanity_list'])):
+        if any(word in guild_data['profanity_list'] for word in message.content.lower().split()):
             await message.delete()
             return
-        
+
+        pattern = build_pattern(message.content)
+        observed_patterns[pattern] += 1
         calculate_activity_level(guild_data, message.guild.id)
 
 @bot.tree.error
@@ -191,4 +191,4 @@ async def clear_histories():
         guild_data['mention_history'].clear()
 
 if __name__ == '__main__':
-    bot.run(test_toke)
+    bot.run(token)
