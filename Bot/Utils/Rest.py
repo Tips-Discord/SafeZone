@@ -37,24 +37,24 @@ def similarity_score(msg1, msg2):
     magnitude1 = math.sqrt(sum(count**2 for count in counter1.values()))
     magnitude2 = math.sqrt(sum(count**2 for count in counter2.values()))
 
-    if magnitude1 == 0 or magnitude2 == 0:
-        return 0.0
-
-    return dot_product / (magnitude1 * magnitude2)
+    return dot_product / (magnitude1 * magnitude2) if magnitude1 and magnitude2 else 0.0
 
 def detect_spam(guild_data, user_id, message):
     current_time = time.time()
     
     if user_id not in guild_data['user_message_history']:
-        guild_data['user_message_history'][user_id] = []
-    
-    history = [(msg_content, msg_time) for msg_content, msg_time in guild_data['user_message_history'][user_id]
-               if current_time - msg_time < guild_data['adaptive_thresholds'].time_window]
+        guild_data['user_message_history'][user_id] = deque()
 
-    similar_count = sum(1 for msg_content, _ in history
-                        if similarity_score(msg_content, message.content) > guild_data['adaptive_thresholds'].similarity_threshold)
+    user_history = guild_data['user_message_history'][user_id]
 
-    guild_data['user_message_history'][user_id].append((message.content, current_time))
+    filtered_history = [(msg, t) for msg, t in user_history if current_time - t < guild_data['adaptive_thresholds'].time_window]
+
+    user_history.clear()
+    user_history.extend(filtered_history)
+
+    similar_count = sum(1 for msg, _ in user_history if similarity_score(msg, message.content) > guild_data['adaptive_thresholds'].similarity_threshold)
+
+    user_history.append((message.content, current_time))
 
     return similar_count >= guild_data['adaptive_thresholds'].spam_threshold
 
@@ -77,6 +77,6 @@ async def timeout_user(member, duration):
 
 async def purge_spam_messages(channel, user, limit):
     try:
-        await channel.purge(limit=limit, check=lambda message: message.author == user)
+        await channel.purge(limit=limit, check=lambda msg: msg.author == user)
     except discord.RateLimited:
         pass
