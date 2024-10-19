@@ -12,7 +12,8 @@ import re
 import sys
 import time
 
-token = "yourdiscordtokenhere"
+token = "yourdiscordtoken"
+purging_users = defaultdict(lambda: asyncio.Semaphore(3))
 permission_denied_users = set()
 message_cache = {}
 observed_patterns = defaultdict(int)

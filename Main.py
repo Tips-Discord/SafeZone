@@ -1,4 +1,4 @@
-from Bot._Init_ import *
+from Bot import *
 from Bot.Utils.AdaptiveThresholds import *
 from Bot.Utils.Rest import *
 
@@ -145,6 +145,7 @@ async def clear_histories():
     message_cache.clear()
     observed_patterns.clear()
     permission_denied_users.clear()
+    purging_users.clear()
 
     for guild_data in bot.guild_data.values():
         guild_data['user_message_history'].clear()

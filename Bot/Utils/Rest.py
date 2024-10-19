@@ -1,5 +1,4 @@
-from Bot._Init_ import *
-from Bot.Utils.AdaptiveThresholds import *
+from Bot.__init__ import *
 
 def clean_message(message):
     return re.sub(r"[^\w\s']", '', message.lower()).strip()
@@ -76,7 +75,14 @@ async def timeout_user(member, duration):
         permission_denied_users.add(member.id)
 
 async def purge_spam_messages(channel, user, limit):
-    try:
-        await channel.purge(limit=limit, check=lambda msg: msg.author == user)
-    except discord.RateLimited:
-        pass
+    semaphore = purging_users[user.id]
+
+    async with semaphore:
+        try:
+            await channel.purge(limit=limit, check=lambda msg: msg.author == user)
+        except discord.RateLimited:
+            pass
+        except Exception as e:
+            print(f"Error during purging messages for user {user.id}: {str(e)}")
+        finally:
+            pass
