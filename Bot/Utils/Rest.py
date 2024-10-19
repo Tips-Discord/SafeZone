@@ -1,4 +1,4 @@
-from Bot.__init__ import *
+from Bot import *
 
 def clean_message(message):
     return re.sub(r"[^\w\s']", '', message.lower()).strip()

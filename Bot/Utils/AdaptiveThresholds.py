@@ -1,4 +1,4 @@
-from Bot.__init__ import *
+from Bot import *
 
 class AdaptiveThresholds:
     def __init__(self, spam_threshold=20, similarity_threshold=0.4, ping_threshold=10, group_threshold=15, time_window=30):
