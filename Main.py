@@ -62,7 +62,8 @@ async def purge(interaction: discord.Interaction, limit: int):
     )
     confirm_embed.set_footer(text="Developed by Tips | This action cannot be undone.")
 
-    async def confirm_callback(interaction: discord.Interaction):
+    async def confirm_callback(inner_interaction: discord.Interaction):
+        await inner_interaction.response.defer(ephemeral=True)
         try:
             deleted = await interaction.channel.purge(limit=limit)
             success_embed = discord.Embed(
@@ -71,7 +72,7 @@ async def purge(interaction: discord.Interaction, limit: int):
                 color=discord.Color.green()
             )
             success_embed.set_footer(text="Developed by Tips")
-            await interaction.response.edit_message(embed=success_embed, view=None)
+            await interaction.followup.send(embed=success_embed, ephemeral=True)
         except Exception as e:
             error_embed = discord.Embed(
                 title="Purge Failed",
@@ -79,7 +80,7 @@ async def purge(interaction: discord.Interaction, limit: int):
                 color=discord.Color.red()
             )
             error_embed.set_footer(text="Developed by Tips")
-            await interaction.response.edit_message(embed=error_embed, view=None)
+            await interaction.followup.send(embed=error_embed, ephemeral=True)
 
     async def cancel_callback(interaction: discord.Interaction):
         cancel_embed = discord.Embed(
