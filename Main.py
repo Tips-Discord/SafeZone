@@ -42,75 +42,194 @@ def get_guild_data(guild_id):
         'anti_raid': True
     })
 
-@bot.tree.command(name="purge", description="Purge messages from the channel")
+@bot.tree.command(name="purge", description="Purge messages from the channel.")
 @app_commands.checks.has_permissions(manage_messages=True)
 async def purge(interaction: discord.Interaction, limit: int):
-    await interaction.response.defer(ephemeral=True)
-
     if limit < 1 or limit > 500:
-        await interaction.followup.send("Purge limit must be between 1 and 500 messages.", ephemeral=True)
+        embed = discord.Embed(
+            title="Invalid Limit",
+            description="Purge limit must be between **1** and **500** messages.",
+            color=discord.Color.red()
+        )
+        embed.set_footer(text="Developed by Tips | Adjust the limit and try again.")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
-    try:
-        deleted = await interaction.channel.purge(limit=limit)
-        await interaction.followup.send(f"Successfully purged {len(deleted)} messages.", ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"Failed to purge messages: {str(e)}", ephemeral=True)
+    confirm_embed = discord.Embed(
+        title="Confirm Purge",
+        description=f"You are about to purge **{limit}** messages from this channel. Confirm to proceed.",
+        color=discord.Color.orange()
+    )
+    confirm_embed.set_footer(text="Developed by Tips | This action cannot be undone.")
+
+    async def confirm_callback(interaction: discord.Interaction):
+        try:
+            deleted = await interaction.channel.purge(limit=limit)
+            success_embed = discord.Embed(
+                title="Purge Successful",
+                description=f"Successfully purged **{len(deleted)}** messages.",
+                color=discord.Color.green()
+            )
+            success_embed.set_footer(text="Developed by Tips")
+            await interaction.response.edit_message(embed=success_embed, view=None)
+        except Exception as e:
+            error_embed = discord.Embed(
+                title="Purge Failed",
+                description=f"An error occurred: **{str(e)}**",
+                color=discord.Color.red()
+            )
+            error_embed.set_footer(text="Developed by Tips")
+            await interaction.response.edit_message(embed=error_embed, view=None)
+
+    async def cancel_callback(interaction: discord.Interaction):
+        cancel_embed = discord.Embed(
+            title="Purge Cancelled",
+            description="No messages were purged.",
+            color=discord.Color.blue()
+        )
+        cancel_embed.set_footer(text="Developed by Tips")
+        await interaction.response.edit_message(embed=cancel_embed, view=None)
+
+    view = discord.ui.View(timeout=30)
+    confirm_button = discord.ui.Button(label="Confirm", style=discord.ButtonStyle.danger)
+    cancel_button = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.secondary)
+    confirm_button.callback = confirm_callback
+    cancel_button.callback = cancel_callback
+    view.add_item(confirm_button)
+    view.add_item(cancel_button)
+
+    await interaction.response.send_message(embed=confirm_embed, view=view, ephemeral=True)
 
 @bot.tree.command(name="ping", description="Returns the bot's latency.")
 async def ping(interaction: discord.Interaction):
-    await interaction.response.defer()
     latency = bot.latency * 1000
-    await interaction.followup.send(f'Pong! Latency: {latency:.2f}ms')
+    embed = discord.Embed(
+        title="Pong! 🏓",
+        description=f"Latency: `{latency:.2f}ms`",
+        color=discord.Color.green()
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="help", description="List all available commands.")
 async def help_command(interaction: discord.Interaction):
-    commands_list = [
-        "/ping - Returns the bot's latency.",
-        "/purge <limit> - Purge messages from the channel.",
-        "/automod <action> <word> - Manage profanity filter.",
-        "/anti_raid <on|off> - Enable or disable anti-raid protection."
-    ]
-    help_message = "\n".join(commands_list)
-    await interaction.response.send_message(f"Available Commands:\n{help_message}", ephemeral=True)
+    embed = discord.Embed(
+        title="Help - Available Commands",
+        description="Here are the commands you can use with the bot.",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="/ping", value="Returns the bot's latency.", inline=False)
+    embed.add_field(name="/purge <limit>", value="Purge messages from the channel.", inline=False)
+    embed.add_field(name="/automod <action> <word>", value="Manage the profanity filter.", inline=False)
+    embed.add_field(name="/anti_raid <on|off>", value="Enable or disable anti-raid protection.", inline=False)
+    embed.set_footer(text="Developed by Tips | Enjoy!")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
-@bot.tree.command(name="automod", description="Manage profanity filter.")
-@app_commands.describe(action="Action to perform: add, remove, list", word="Comma-separated words to add/remove, if applicable.")
+@bot.tree.command(name="automod", description="Manage profanity filter interactively.")
 @app_commands.checks.has_permissions(administrator=True)
-async def automod(interaction: discord.Interaction, action: str, word: str = None):
+async def automod(interaction: discord.Interaction):
     guild_data = get_guild_data(interaction.guild.id)
-    action = action.lower().strip()
 
-    if action == "list":
+    async def list_callback(interaction: discord.Interaction):
         profanity_list = guild_data['profanity_list']
-        message = "The profanity filter is currently empty." if not profanity_list else f"Profanity filter: {', '.join(profanity_list)}"
-        await interaction.response.send_message(message, ephemeral=True)
+        embed = Embed(
+            title="Profanity Filter - Current Words",
+            color=discord.Color.blue()
+        )
+        embed.description = f"Words: {', '.join(profanity_list)}" if profanity_list else "The profanity filter is currently empty."
+        await interaction.response.edit_message(embed=embed, view=view)
 
-    elif action in {"add", "remove"} and word:
-        words = {w.strip() for w in word.split(",") if w.strip()}
-        if action == "add":
+    async def add_callback(interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "Please type the words to add (comma-separated):",
+            ephemeral=True
+        )
+
+        def check(m):
+            return m.author == interaction.user and m.channel == interaction.channel
+
+        try:
+            msg = await bot.wait_for('message', check=check, timeout=30)
+            words = {w.strip() for w in msg.content.split(",") if w.strip()}
             guild_data['profanity_list'].extend(words)
-            await interaction.response.send_message(f"Added words: {', '.join(words)}", ephemeral=True)
-        elif action == "remove":
+            response = f"Added words: {', '.join(words)}"
+        except asyncio.TimeoutError:
+            response = "You didn't provide any input in time."
+        await interaction.followup.send(response, ephemeral=True)
+
+    async def remove_callback(interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "Please type the words to remove (comma-separated):",
+            ephemeral=True
+        )
+
+        def check(m):
+            return m.author == interaction.user and m.channel == interaction.channel
+
+        try:
+            msg = await bot.wait_for('message', check=check, timeout=30)
+            words = {w.strip() for w in msg.content.split(",") if w.strip()}
             removed_words = [w for w in words if w in guild_data['profanity_list']]
             guild_data['profanity_list'] = [w for w in guild_data['profanity_list'] if w not in removed_words]
-            message = f"Removed words: {', '.join(removed_words)}" if removed_words else "No matching words found in profanity list."
-            await interaction.response.send_message(message, ephemeral=True)
-    else:
-        await interaction.response.send_message("Invalid action or missing word.", ephemeral=True)
+            response = f"Removed words: {', '.join(removed_words)}" if removed_words else "No matching words found."
+        except asyncio.TimeoutError:
+            response = "You didn't provide any input in time."
+        await interaction.followup.send(response, ephemeral=True)
+
+    view = ui.View(timeout=60)
+    view.add_item(ui.Button(label="List", style=discord.ButtonStyle.primary, custom_id="list"))
+    view.add_item(ui.Button(label="Add", style=discord.ButtonStyle.success, custom_id="add"))
+    view.add_item(ui.Button(label="Remove", style=discord.ButtonStyle.danger, custom_id="remove"))
+
+    view.children[0].callback = list_callback
+    view.children[1].callback = add_callback
+    view.children[2].callback = remove_callback
+
+    embed = Embed(
+        title="Automod Interface",
+        description="Use the buttons below to manage the profanity filter.",
+        color=discord.Color.orange()
+    )
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 @bot.tree.command(name="anti_raid", description="Enable or disable anti-raid protection.")
-@app_commands.describe(status="Enable or disable anti-raid: 'on' or 'off'.")
 @app_commands.checks.has_permissions(administrator=True)
-async def anti_raid(interaction: discord.Interaction, status: str):
+async def anti_raid(interaction: discord.Interaction):
     guild_data = get_guild_data(interaction.guild.id)
-    status = status.lower().strip()
 
-    if status in {"on", "off"}:
-        guild_data['anti_raid'] = (status == "on")
-        await interaction.response.send_message(f"Anti-raid protection is now **{status}**.", ephemeral=True)
-    else:
-        await interaction.response.send_message("Invalid status. Please use 'on' or 'off'.", ephemeral=True)
+    async def toggle_callback(interaction: discord.Interaction):
+        guild_data['anti_raid'] = not guild_data['anti_raid']
+        new_status = "Enabled" if guild_data['anti_raid'] else "Disabled"
+        color = discord.Color.green() if guild_data['anti_raid'] else discord.Color.red()
+
+        embed = discord.Embed(
+            title="Anti-Raid Protection",
+            description=f"Anti-raid protection is now **{new_status}**.",
+            color=color
+        )
+        embed.set_footer(text="Developed by Tips")
+
+        toggle_button.label = "Disable" if guild_data['anti_raid'] else "Enable"
+        toggle_button.style = discord.ButtonStyle.danger if guild_data['anti_raid'] else discord.ButtonStyle.success
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    current_status = "Enabled" if guild_data['anti_raid'] else "Disabled"
+    embed = discord.Embed(
+        title="Anti-Raid Protection",
+        description=f"Current Status: **{current_status}**.",
+        color=discord.Color.green() if guild_data['anti_raid'] else discord.Color.red()
+    )
+    embed.set_footer(text="Developed by Tips")
+
+    toggle_button = discord.ui.Button(
+        label="Disable" if guild_data['anti_raid'] else "Enable",
+        style=discord.ButtonStyle.danger if guild_data['anti_raid'] else discord.ButtonStyle.success
+    )
+    toggle_button.callback = toggle_callback
+
+    view = discord.ui.View(timeout=60)
+    view.add_item(toggle_button)
+
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 @bot.event
 async def on_message(message):
