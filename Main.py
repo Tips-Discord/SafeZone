@@ -20,9 +20,9 @@ class MyBot(discord.Client):
             if system_channel:
                 await system_channel.send("Hello, I'm the new automod! :fire: :fire: :fire: :fire:")
             else:
-                print(f"Joined {guild.name}, but no system channel found.")
+                pass
         except Exception as e:
-            print(f"Failed to send system message to {guild.name}: {str(e)}")
+            pass
 
     async def setup_hook(self):
         await self.tree.sync()
@@ -94,8 +94,10 @@ async def purge(interaction: discord.Interaction, limit: int):
     view = discord.ui.View(timeout=30)
     confirm_button = discord.ui.Button(label="Confirm", style=discord.ButtonStyle.danger)
     cancel_button = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.secondary)
+
     confirm_button.callback = confirm_callback
     cancel_button.callback = cancel_callback
+
     view.add_item(confirm_button)
     view.add_item(cancel_button)
 
@@ -126,66 +128,76 @@ async def help_command(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="automod", description="Manage profanity filter interactively.")
-@app_commands.checks.has_permissions(administrator=True)
+@app_commands.checks.has_permissions(manage_guild=True)
 async def automod(interaction: discord.Interaction):
     guild_data = get_guild_data(interaction.guild.id)
 
-    async def list_callback(interaction: discord.Interaction):
+    class AutomodModal(discord.ui.Modal, title="Automod - Manage Profanity Filter"):
+        words = discord.ui.TextInput(
+            label="Words",
+            style=discord.TextStyle.paragraph,
+            placeholder="Enter words separated by commas (e.g., spam, troll)",
+            required=True
+        )
+        action = None
+
+        async def on_submit(self, inner_interaction: discord.Interaction):
+            words_list = {word.strip() for word in self.words.value.split(",") if word.strip()}
+            response = []
+
+            if self.action == "add":
+                added_words = []
+                for word in words_list:
+                    if word not in guild_data['profanity_list']:
+                        guild_data['profanity_list'].append(word)
+                        added_words.append(word)
+                response = f"**Added Words:** {', '.join(added_words)}" if added_words else "No new words were added."
+
+            elif self.action == "remove":
+                removed_words = [word for word in words_list if word in guild_data['profanity_list']]
+                guild_data['profanity_list'] = [word for word in guild_data['profanity_list'] if word not in removed_words]
+                response = f"**Removed Words:** {', '.join(removed_words)}" if removed_words else "No matching words were removed."
+
+            embed = discord.Embed(
+                title="Automod Update",
+                description=response,
+                color=discord.Color.green()
+            )
+            await inner_interaction.response.send_message(embed=embed, ephemeral=True)
+
+    async def list_callback(inner_interaction: discord.Interaction):
         profanity_list = guild_data['profanity_list']
-        embed = Embed(
+        embed = discord.Embed(
             title="Profanity Filter - Current Words",
+            description=f"Words: {', '.join(profanity_list)}" if profanity_list else "The profanity filter is currently empty.",
             color=discord.Color.blue()
         )
-        embed.description = f"Words: {', '.join(profanity_list)}" if profanity_list else "The profanity filter is currently empty."
-        await interaction.response.edit_message(embed=embed, view=view)
+        await inner_interaction.response.edit_message(embed=embed, view=view)
 
-    async def add_callback(interaction: discord.Interaction):
-        await interaction.response.send_message(
-            "Please type the words to add (comma-separated):",
-            ephemeral=True
-        )
+    async def add_callback(inner_interaction: discord.Interaction):
+        modal = AutomodModal()
+        modal.action = "add"
+        await inner_interaction.response.send_modal(modal)
 
-        def check(m):
-            return m.author == interaction.user and m.channel == interaction.channel
+    async def remove_callback(inner_interaction: discord.Interaction):
+        modal = AutomodModal()
+        modal.action = "remove"
+        await inner_interaction.response.send_modal(modal)
 
-        try:
-            msg = await bot.wait_for('message', check=check, timeout=30)
-            words = {w.strip() for w in msg.content.split(",") if w.strip()}
-            guild_data['profanity_list'].extend(words)
-            response = f"Added words: {', '.join(words)}"
-        except asyncio.TimeoutError:
-            response = "You didn't provide any input in time."
-        await interaction.followup.send(response, ephemeral=True)
+    view = discord.ui.View(timeout=60)
+    list_button = discord.ui.Button(label="List", style=discord.ButtonStyle.primary)
+    add_button = discord.ui.Button(label="Add", style=discord.ButtonStyle.success)
+    remove_button = discord.ui.Button(label="Remove", style=discord.ButtonStyle.danger)
 
-    async def remove_callback(interaction: discord.Interaction):
-        await interaction.response.send_message(
-            "Please type the words to remove (comma-separated):",
-            ephemeral=True
-        )
+    list_button.callback = list_callback
+    add_button.callback = add_callback
+    remove_button.callback = remove_callback
 
-        def check(m):
-            return m.author == interaction.user and m.channel == interaction.channel
+    view.add_item(list_button)
+    view.add_item(add_button)
+    view.add_item(remove_button)
 
-        try:
-            msg = await bot.wait_for('message', check=check, timeout=30)
-            words = {w.strip() for w in msg.content.split(",") if w.strip()}
-            removed_words = [w for w in words if w in guild_data['profanity_list']]
-            guild_data['profanity_list'] = [w for w in guild_data['profanity_list'] if w not in removed_words]
-            response = f"Removed words: {', '.join(removed_words)}" if removed_words else "No matching words found."
-        except asyncio.TimeoutError:
-            response = "You didn't provide any input in time."
-        await interaction.followup.send(response, ephemeral=True)
-
-    view = ui.View(timeout=60)
-    view.add_item(ui.Button(label="List", style=discord.ButtonStyle.primary, custom_id="list"))
-    view.add_item(ui.Button(label="Add", style=discord.ButtonStyle.success, custom_id="add"))
-    view.add_item(ui.Button(label="Remove", style=discord.ButtonStyle.danger, custom_id="remove"))
-
-    view.children[0].callback = list_callback
-    view.children[1].callback = add_callback
-    view.children[2].callback = remove_callback
-
-    embed = Embed(
+    embed = discord.Embed(
         title="Automod Interface",
         description="Use the buttons below to manage the profanity filter.",
         color=discord.Color.orange()
@@ -193,7 +205,7 @@ async def automod(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 @bot.tree.command(name="anti_raid", description="Enable or disable anti-raid protection.")
-@app_commands.checks.has_permissions(administrator=True)
+@app_commands.checks.has_permissions(manage_guild=True)
 async def anti_raid(interaction: discord.Interaction):
     guild_data = get_guild_data(interaction.guild.id)
 
@@ -241,8 +253,8 @@ async def on_message(message):
     
     if guild_data['anti_raid'] and (detect_spam(guild_data, message.author.id, message) or is_patterned_spam(message.content)):
         await asyncio.gather(
-            purge_spam_messages(message.channel, message.author, limit=125),
-            timeout_user(message.author, duration=300)
+            timeout_user(message.author, duration=600),
+            purge_spam_messages(message.channel, message.author, limit=200)
         )
         return
 

@@ -1,3 +1,5 @@
 .gitignore
 Bot/Utils/__pycache__
 Bot/__pycache__
+guild_data.db
+.vscode/settings.json
