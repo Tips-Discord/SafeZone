@@ -31,6 +31,7 @@ class SettingsManager:
             if isinstance(guild_data, dict):
                 result[guild_id] = {
                     'profanity_list': guild_data.get('profanity_list', []),
+                    'whitelist': guild_data.get('whitelist', []),
                     'anti_raid': guild_data.get('anti_raid', True)
                 }
         return result
@@ -44,6 +45,7 @@ class SettingsManager:
                 if isinstance(v, dict):
                     guild_data = {
                         'profanity_list': v.get('profanity_list', []),
+                        'whitelist': v.get('whitelist', []),
                         'user_message_history': defaultdict(lambda: deque(maxlen=100)),
                         'group_message_history': deque(maxlen=200),
                         'mention_history': defaultdict(lambda: deque(maxlen=50)),

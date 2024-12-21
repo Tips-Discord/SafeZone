@@ -7,9 +7,7 @@ class SafeZone(discord.Client):
     def __init__(self):
         super().__init__(intents=discord.Intents.all())
         self.tree = app_commands.CommandTree(self)
-        xd = GM.load()
-        print(xd)
-        self.guild_data = xd
+        self.guild_data = GM.load()
 
     async def on_ready(self):
         print(f"Logged in as {self.user} (ID: {self.user.id})")
@@ -40,6 +38,7 @@ bot = SafeZone()
 def get_guild_data(guild_id):
     return bot.guild_data.setdefault(guild_id, {
         'profanity_list': ["cp", "childporn", "c.p", 'raid', 'token', 'furrycum', '.gg/'],
+        'whitelist': [],
         'user_message_history': defaultdict(lambda: deque(maxlen=100)),
         'group_message_history': deque(maxlen=200),
         'mention_history': defaultdict(lambda: deque(maxlen=50)),
@@ -168,6 +167,7 @@ async def automod(interaction: discord.Interaction):
                 description=response,
                 color=discord.Color.green()
             )
+            embed.set_footer(text="Developed by Tips")
             await inner_interaction.response.send_message(embed=embed, ephemeral=True)
 
     async def list_callback(inner_interaction: discord.Interaction):
@@ -177,6 +177,7 @@ async def automod(interaction: discord.Interaction):
             description=f"Words: {', '.join(profanity_list)}" if profanity_list else "The profanity filter is currently empty.",
             color=discord.Color.blue()
         )
+        embed.set_footer(text="Developed by Tips")
         await inner_interaction.response.edit_message(embed=embed, view=view)
 
     async def add_callback(inner_interaction: discord.Interaction):
@@ -207,6 +208,108 @@ async def automod(interaction: discord.Interaction):
         description="Use the buttons below to manage the profanity filter.",
         color=discord.Color.orange()
     )
+    embed.set_footer(text="Developed by Tips")
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+@bot.tree.command(name="whitelist", description="Manage whitelisted users interactively.")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def whitelist(interaction: discord.Interaction):
+    guild_data = get_guild_data(interaction.guild.id)
+
+    class WhitelistModal(discord.ui.Modal, title="Whitelist - Manage Whitelisted Users"):
+        users = discord.ui.TextInput(
+            label="Users",
+            style=discord.TextStyle.paragraph,
+            placeholder="Enter user IDs separated by commas",
+            required=True
+        )
+        action = None
+
+        async def on_submit(self, inner_interaction: discord.Interaction):
+            user_ids = {id.strip() for id in self.users.value.split(",") if id.strip()}
+            response = []
+
+            if self.action == "add":
+                added_users = []
+                for user_id in user_ids:
+                    try:
+                        user_id = int(user_id)
+                        member = interaction.guild.get_member(user_id)
+                        if member is None:
+                            continue
+                        if user_id not in guild_data.get('whitelist', []):
+                            guild_data.setdefault('whitelist', []).append(user_id)
+                            added_users.append(f"{member.name}#{member.discriminator}")
+                    except ValueError:
+                        continue
+                response = f"**Added Users:** {', '.join(added_users)}" if added_users else "No new users were added."
+
+            elif self.action == "remove":
+                removed_users = []
+                for user_id in user_ids:
+                    try:
+                        user_id = int(user_id)
+                        member = interaction.guild.get_member(user_id)
+                        if member and user_id in guild_data.get('whitelist', []):
+                            guild_data['whitelist'] = [u for u in guild_data.get('whitelist', []) if u != user_id]
+                            removed_users.append(f"{member.name}#{member.discriminator}")
+                    except ValueError:
+                        continue
+                response = f"**Removed Users:** {', '.join(removed_users)}" if removed_users else "No users were removed."
+
+            embed = discord.Embed(
+                title="Whitelist Update",
+                description=response,
+                color=discord.Color.green()
+            )
+            embed.set_footer(text="Developed by Tips")
+            await inner_interaction.response.send_message(embed=embed, ephemeral=True)
+
+    async def list_callback(inner_interaction: discord.Interaction):
+        whitelist = guild_data.get('whitelist', [])
+        users_info = []
+        for user_id in whitelist:
+            member = interaction.guild.get_member(user_id)
+            if member:
+                users_info.append(f"{member.name}#{member.discriminator} ({user_id})")
+        
+        embed = discord.Embed(
+            title="Whitelist - Current Users",
+            description=f"Users:\n{chr(10).join(users_info)}" if users_info else "The whitelist is currently empty.",
+            color=discord.Color.blue()
+        )
+        embed.set_footer(text="Developed by Tips")
+        await inner_interaction.response.edit_message(embed=embed, view=view)
+
+    async def add_callback(inner_interaction: discord.Interaction):
+        modal = WhitelistModal()
+        modal.action = "add"
+        await inner_interaction.response.send_modal(modal)
+
+    async def remove_callback(inner_interaction: discord.Interaction):
+        modal = WhitelistModal()
+        modal.action = "remove"
+        await inner_interaction.response.send_modal(modal)
+
+    view = discord.ui.View(timeout=60)
+    list_button = discord.ui.Button(label="List", style=discord.ButtonStyle.primary)
+    add_button = discord.ui.Button(label="Add", style=discord.ButtonStyle.success)
+    remove_button = discord.ui.Button(label="Remove", style=discord.ButtonStyle.danger)
+
+    list_button.callback = list_callback
+    add_button.callback = add_callback
+    remove_button.callback = remove_callback
+
+    view.add_item(list_button)
+    view.add_item(add_button)
+    view.add_item(remove_button)
+
+    embed = discord.Embed(
+        title="User Whitelist Interface",
+        description="Use the buttons below to manage whitelisted users.",
+        color=discord.Color.orange()
+    )
+    embed.set_footer(text="Developed by Tips")
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 @bot.tree.command(name="anti_raid", description="Enable or disable anti-raid protection.")
@@ -256,6 +359,9 @@ async def on_message(message):
 
     guild_data = get_guild_data(message.guild.id)
     
+    if message.author.id in guild_data.get('whitelist', []):
+        return
+
     if guild_data['anti_raid'] and (detect_spam(guild_data, message.author.id, message) or is_patterned_spam(message.content)):
         await asyncio.gather(
             timeout_user(message.author, duration=600),
