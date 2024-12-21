@@ -1,16 +1,19 @@
 from Bot import *
 from Bot.Utils.AdaptiveThresholds import *
 from Bot.Utils.Rest import *
+from Bot.Utils.Saver import SettingsManager as GM
 
-class MyBot(discord.Client):
+class SafeZone(discord.Client):
     def __init__(self):
         super().__init__(intents=discord.Intents.all())
         self.tree = app_commands.CommandTree(self)
-        self.guild_data = {}
+        xd = GM.load()
+        print(xd)
+        self.guild_data = xd
 
     async def on_ready(self):
-        print(f'Logged in as {self.user}!')
-        print(f'In {len(self.guilds)} guilds.')
+        print(f"Logged in as {self.user} (ID: {self.user.id})")
+        print(f"Connected to {len(self.guilds)} guild(s).")
         await self.change_presence(activity=discord.Game(name='Developed by Tips'))
         clear_histories.start()
 
@@ -18,7 +21,7 @@ class MyBot(discord.Client):
         try:
             system_channel = guild.system_channel
             if system_channel:
-                await system_channel.send("Hello, I'm the new automod! :fire: :fire: :fire: :fire:")
+                await system_channel.send("Hello, I'm the new automod! :fire: ")
             else:
                 pass
         except Exception as e:
@@ -28,9 +31,11 @@ class MyBot(discord.Client):
         await self.tree.sync()
 
     async def close(self):
+        GM.save(self.guild_data)
+        time.sleep(3)
         await super().close()
 
-bot = MyBot()
+bot = SafeZone()
 
 def get_guild_data(guild_id):
     return bot.guild_data.setdefault(guild_id, {
