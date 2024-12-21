@@ -3,6 +3,9 @@ from Bot.Utils.AdaptiveThresholds import AdaptiveThresholds
 
 file_path = "settings.json"
 
+
+# made by ai my beloved!
+
 class SettingsManager:
     _last_saved_data = None
 
@@ -39,7 +42,6 @@ class SettingsManager:
             for k, v in data.items():
                 new_k = int(k) if k.isdigit() else k
                 if isinstance(v, dict):
-                    # Add default values for non-saved settings
                     guild_data = {
                         'profanity_list': v.get('profanity_list', []),
                         'user_message_history': defaultdict(lambda: deque(maxlen=100)),
