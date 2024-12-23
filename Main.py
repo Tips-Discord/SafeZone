@@ -20,8 +20,6 @@ class SafeZone(discord.Client):
             system_channel = guild.system_channel
             if system_channel:
                 await system_channel.send("Hello, I'm the new automod! :fire: ")
-            else:
-                pass
         except Exception as e:
             pass
 
@@ -96,7 +94,7 @@ async def purge(interaction: discord.Interaction, limit: int):
         cancel_embed.set_footer(text="Developed by Tips")
         await interaction.response.edit_message(embed=cancel_embed, view=None)
 
-    view = discord.ui.View(timeout=30)
+    view = discord.ui.View(timeout=45)
     confirm_button = discord.ui.Button(label="Confirm", style=discord.ButtonStyle.danger)
     cancel_button = discord.ui.Button(label="Cancel", style=discord.ButtonStyle.secondary)
 
@@ -116,6 +114,7 @@ async def ping(interaction: discord.Interaction):
         description=f"Latency: `{latency:.2f}ms`",
         color=discord.Color.green()
     )
+    embed.set_footer(text="Developed by Tips")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="help", description="List all available commands.")
@@ -127,9 +126,11 @@ async def help_command(interaction: discord.Interaction):
     )
     embed.add_field(name="/ping", value="Returns the bot's latency.", inline=False)
     embed.add_field(name="/purge <limit>", value="Purge messages from the channel.", inline=False)
-    embed.add_field(name="/automod <action> <word>", value="Manage the profanity filter.", inline=False)
-    embed.add_field(name="/anti_raid <on|off>", value="Enable or disable anti-raid protection.", inline=False)
+    embed.add_field(name="/automod", value="Manage the profanity filter interactively.", inline=False)
     embed.add_field(name="/log_channel <channel>", value="Set the log channel for alerts.", inline=False)
+    embed.add_field(name="/whitelist", value="Manage whitelisted users interactively.", inline=False)
+    embed.add_field(name="/anti_raid", value="Enable or disable anti-raid protection.", inline=False)
+    embed.add_field(name="/help", value="List all available commands.", inline=False)
     embed.set_footer(text="Developed by Tips | Enjoy!")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -426,8 +427,8 @@ async def on_member_ban(guild, user):
             if entry.target.id == user.id:
                 reason = entry.reason
                 break
-        else:
-            reason = "No reason provided."
+            else:
+                reason = "No reason provided."
 
         embed = discord.Embed(
             title="User Banned",
@@ -454,8 +455,8 @@ async def on_member_remove(member):
             if entry.target.id == member.id:
                 reason = entry.reason
                 break
-        else:
-            return
+            else:
+                return
 
         embed = discord.Embed(
             title="User Kicked",
