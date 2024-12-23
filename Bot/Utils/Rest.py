@@ -51,9 +51,9 @@ def detect_spam(guild_data, user_id, message):
     user_history.clear()
     user_history.extend(filtered_history)
 
-    similar_count = sum(1 for msg, _ in user_history if similarity_score(msg, message.content) > guild_data['adaptive_thresholds'].similarity_threshold)
+    similar_count = sum(1 for msg, _ in user_history if similarity_score(msg, message) > guild_data['adaptive_thresholds'].similarity_threshold)
 
-    user_history.append((message.content, current_time))
+    user_history.append((message, current_time))
 
     return similar_count >= guild_data['adaptive_thresholds'].spam_threshold
 
