@@ -30,7 +30,7 @@ class SafeZone(discord.Client):
 
     async def close(self):
         GM.save(self.guild_data)
-        time.sleep(3)
+        time.sleep(2)
         await super().close()
 
 bot = SafeZone()
@@ -39,6 +39,7 @@ def get_guild_data(guild_id):
     return bot.guild_data.setdefault(guild_id, {
         'profanity_list': ["cp", "childporn", "c.p", 'raid', 'token', 'furrycum', '.gg/'],
         'whitelist': [],
+        'log_channel': None,
         'user_message_history': defaultdict(lambda: deque(maxlen=100)),
         'group_message_history': deque(maxlen=200),
         'mention_history': defaultdict(lambda: deque(maxlen=50)),
@@ -128,6 +129,7 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(name="/purge <limit>", value="Purge messages from the channel.", inline=False)
     embed.add_field(name="/automod <action> <word>", value="Manage the profanity filter.", inline=False)
     embed.add_field(name="/anti_raid <on|off>", value="Enable or disable anti-raid protection.", inline=False)
+    embed.add_field(name="/log_channel <channel>", value="Set the log channel for alerts.", inline=False)
     embed.set_footer(text="Developed by Tips | Enjoy!")
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -210,6 +212,20 @@ async def automod(interaction: discord.Interaction):
     )
     embed.set_footer(text="Developed by Tips")
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+@bot.tree.command(name="log_channel", description="Set the log channel for anti-raid alerts.")
+@app_commands.checks.has_permissions(manage_guild=True)
+async def log_channel(interaction: discord.Interaction, channel: discord.TextChannel):
+    guild_data = get_guild_data(interaction.guild.id)
+    guild_data['log_channel'] = channel.id
+
+    embed = discord.Embed(
+        title="Log Channel Set",
+        description=f"Log channel has been set to {channel.mention}.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text="Developed by Tips")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 @bot.tree.command(name="whitelist", description="Manage whitelisted users interactively.")
 @app_commands.checks.has_permissions(manage_guild=True)
@@ -375,6 +391,87 @@ async def on_message(message):
     pattern = build_pattern(message.content)
     observed_patterns[pattern] += 1
     calculate_activity_level(guild_data, message.guild.id)
+
+@bot.event
+async def on_member_join(member):
+    guild_data = get_guild_data(member.guild.id)
+
+    if guild_data['anti_raid']:
+        chance = calculate_bot_probability(member)
+        if chance > 42:
+            embed = discord.Embed(
+                title="Potential Bot Detected",
+                description=f"User {member.mention} has a high probability of being a bot.",
+                color=discord.Color.red()
+            )
+            embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+            embed.add_field(name="Username", value=f"{member.name}#{member.discriminator}", inline=True)
+            embed.add_field(name="User ID", value=member.id, inline=True)
+            account_age = (discord.utils.utcnow() - member.created_at).days
+            embed.add_field(name="Account Created", value=f"<t:{int(member.created_at.timestamp())}:F> (<t:{int((discord.utils.utcnow() - timedelta(days=account_age)).timestamp())}:R>)", inline=True)
+            embed.set_footer(text="Developed by Tips")
+
+            channel_id = guild_data.get('log_channel')
+            if channel_id:
+                channel = member.guild.get_channel(channel_id)
+                if channel:
+                    await channel.send(embed=embed)
+
+@bot.event
+async def on_member_ban(guild, user):
+    guild_data = get_guild_data(guild.id)
+    channel_id = guild_data.get('log_channel')
+    if channel_id:
+        async for entry in guild.audit_logs(action=discord.AuditLogAction.ban, limit=1):
+            if entry.target.id == user.id:
+                reason = entry.reason
+                break
+        else:
+            reason = "No reason provided."
+
+        embed = discord.Embed(
+            title="User Banned",
+            description=f"User {user.mention} has been banned from the guild.",
+            color=discord.Color.red()
+        )
+
+        embed.set_thumbnail(url=user.avatar.url if user.avatar else user.default_avatar.url)
+        embed.add_field(name="Username", value=f"{user.name}#{user.discriminator}", inline=True)
+        embed.add_field(name="User ID", value=user.id, inline=True)
+        embed.add_field(name="Reason", value=reason, inline=True)
+        embed.set_footer(text="Developed by Tips")
+
+        channel = guild.get_channel(channel_id)
+        if channel:
+            await channel.send(embed=embed)
+
+@bot.event
+async def on_member_remove(member):
+    guild_data = get_guild_data(member.guild.id)
+    channel_id = guild_data.get('log_channel')
+    if channel_id:
+        async for entry in member.guild.audit_logs(action=discord.AuditLogAction.kick, limit=1):
+            if entry.target.id == member.id:
+                reason = entry.reason
+                break
+        else:
+            return
+
+        embed = discord.Embed(
+            title="User Kicked",
+            description=f"User {member.mention} has been kicked from the guild.",
+            color=discord.Color.orange()
+        )
+
+        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+        embed.add_field(name="Username", value=f"{member.name}#{member.discriminator}", inline=True)
+        embed.add_field(name="User ID", value=member.id, inline=True)
+        embed.add_field(name="Reason", value=reason, inline=True)
+        embed.set_footer(text="Developed by Tips")
+
+        channel = member.guild.get_channel(channel_id)
+        if channel:
+            await channel.send(embed=embed)
 
 @bot.tree.error
 async def on_app_command_error(interaction: discord.Interaction, error: Exception):

@@ -3,7 +3,6 @@ from Bot.Utils.AdaptiveThresholds import AdaptiveThresholds
 
 file_path = "settings.json"
 
-
 # made by ai my beloved!
 
 class SettingsManager:
@@ -32,6 +31,7 @@ class SettingsManager:
                 result[guild_id] = {
                     'profanity_list': guild_data.get('profanity_list', []),
                     'whitelist': guild_data.get('whitelist', []),
+                    'log_channel': guild_data.get('log_channel', None),
                     'anti_raid': guild_data.get('anti_raid', True)
                 }
         return result
@@ -46,6 +46,7 @@ class SettingsManager:
                     guild_data = {
                         'profanity_list': v.get('profanity_list', []),
                         'whitelist': v.get('whitelist', []),
+                        'log_channel': v.get('log_channel', None),
                         'user_message_history': defaultdict(lambda: deque(maxlen=100)),
                         'group_message_history': deque(maxlen=200),
                         'mention_history': defaultdict(lambda: deque(maxlen=50)),

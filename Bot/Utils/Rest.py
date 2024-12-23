@@ -86,3 +86,40 @@ async def purge_spam_messages(channel, user, limit):
             print(f"Error during purging messages for user {user.id}: {str(e)}")
         finally:
             pass
+
+def calculate_bot_probability(member):
+    probability = 0
+
+    if member.bot:
+        return 100
+
+    age = (datetime.now(timezone.utc) - member.created_at).days
+    name = member.name.lower()
+    
+    if age < 7:
+        probability += 25
+    elif age < 30:
+        probability += 10
+
+    if len(name) <= 2:
+        probability += 10
+
+    if member.default_avatar:
+        probability += 10
+
+    if "xx" in name or name.startswith("_") or name.endswith("_"):
+        probability += 5
+
+    if name[-2:].isdigit():
+        probability += 10
+
+    if any(name.count(char) > 3 for char in set(name)):
+        probability += 5
+
+    if name.startswith(("!", ".", "-")):
+        probability += 10
+
+    if any(substring in name for substring in [".com", "http", ".net"]):
+        probability += 15
+
+    return min(probability, 100)
